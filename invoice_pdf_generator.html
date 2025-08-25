@@ -1,0 +1,627 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Invoice PDF Generator</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+            height: calc(100vh - 40px);
+        }
+
+        .form-panel {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            backdrop-filter: blur(10px);
+            overflow-y: auto;
+        }
+
+        .preview-panel {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 20px;
+            padding: 20px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            backdrop-filter: blur(10px);
+            overflow-y: auto;
+        }
+
+        h1 {
+            color: #4a5568;
+            margin-bottom: 30px;
+            font-size: 28px;
+            text-align: center;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .form-group {
+            margin-bottom: 25px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #4a5568;
+            font-size: 14px;
+        }
+
+        input, textarea {
+            width: 100%;
+            padding: 12px 16px;
+            border: 2px solid #e2e8f0;
+            border-radius: 12px;
+            font-size: 14px;
+            transition: all 0.3s ease;
+            background: rgba(255, 255, 255, 0.8);
+        }
+
+        input:focus, textarea:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+            transform: translateY(-2px);
+        }
+
+        textarea {
+            resize: vertical;
+            min-height: 80px;
+        }
+
+        .items-section {
+            background: rgba(102, 126, 234, 0.05);
+            padding: 20px;
+            border-radius: 15px;
+            margin: 25px 0;
+        }
+
+        .item-row {
+            display: grid;
+            grid-template-columns: 2fr 1fr 1fr auto;
+            gap: 10px;
+            margin-bottom: 15px;
+            align-items: end;
+        }
+
+        .item-row input {
+            margin-bottom: 0;
+        }
+
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 14px;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            box-shadow: 0 8px 20px rgba(102, 126, 234, 0.3);
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 12px 30px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-secondary {
+            background: #e2e8f0;
+            color: #4a5568;
+        }
+
+        .btn-secondary:hover {
+            background: #cbd5e0;
+            transform: translateY(-1px);
+        }
+
+        .btn-danger {
+            background: #fed7d7;
+            color: #c53030;
+            padding: 8px 12px;
+            font-size: 12px;
+        }
+
+        .btn-danger:hover {
+            background: #feb2b2;
+        }
+
+        /* Invoice Preview Styles */
+        #invoicePreview {
+            background: white;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+            border-radius: 15px;
+            overflow: hidden;
+            transform-origin: top left;
+        }
+
+        .invoice-wrapper {
+            padding: 40px;
+            background: linear-gradient(145deg, #ffffff, #f8fafc);
+        }
+
+        .header {
+            background: linear-gradient(145deg, #3f51b5, #2196f3);
+            text-align: center;
+            color: #fff;
+            padding: 30px;
+            border-radius: 10px;
+            margin-bottom: 30px;
+        }
+
+        .header h1 {
+            font-size: 36px;
+            margin-bottom: 10px;
+            color: white;
+            background: none;
+            -webkit-text-fill-color: white;
+        }
+
+        .header p {
+            font-size: 16px;
+            opacity: 0.9;
+        }
+
+        .invoice-details {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 30px;
+            gap: 30px;
+        }
+
+        .invoice-details > div {
+            flex: 1;
+        }
+
+        .invoice-details h3 {
+            color: #3f51b5;
+            font-size: 18px;
+            margin-bottom: 15px;
+        }
+
+        .invoice-details p {
+            font-size: 14px;
+            color: #555;
+            line-height: 1.6;
+            margin-bottom: 5px;
+        }
+
+        .table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+        }
+
+        .table th,
+        .table td {
+            padding: 15px;
+            text-align: left;
+            font-size: 14px;
+        }
+
+        .table th {
+            background: linear-gradient(135deg, #f1f5fc, #e3f2fd);
+            color: #3f51b5;
+            font-weight: 600;
+        }
+
+        .table td {
+            background-color: #fff;
+            border-bottom: 1px solid #e6e9f1;
+            color: #555;
+        }
+
+        .table tr:nth-child(even) td {
+            background-color: #f9f9f9;
+        }
+
+        .table .total {
+            background: linear-gradient(135deg, #e8f4f8, #f1f5fc);
+            font-weight: 700;
+            font-size: 16px;
+            color: #2c3e50;
+        }
+
+        .table .total td {
+            border-bottom: none;
+        }
+
+        .footer {
+            text-align: center;
+            margin-top: 40px;
+            padding-top: 30px;
+            border-top: 2px solid #e6e9f1;
+        }
+
+        .footer p {
+            font-size: 14px;
+            color: #666;
+            margin-bottom: 10px;
+        }
+
+        .footer a {
+            color: #2196f3;
+            text-decoration: none;
+            font-weight: 500;
+        }
+
+        .controls {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 20px;
+            justify-content: center;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                grid-template-columns: 1fr;
+                height: auto;
+            }
+            
+            .item-row {
+                grid-template-columns: 1fr;
+                gap: 10px;
+            }
+            
+            .invoice-details {
+                flex-direction: column;
+                gap: 20px;
+            }
+            
+            .table th,
+            .table td {
+                padding: 10px 8px;
+                font-size: 12px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="form-panel">
+            <h1>🧾 Fatura Oluşturucu</h1>
+            
+            <form id="invoiceForm">
+                <div class="form-group">
+                    <label>Fatura No</label>
+                    <input type="text" id="invoiceNo" value="1" required>
+                </div>
+
+                <div class="form-group">
+                    <label>Fatura Tarihi</label>
+                    <input type="date" id="invoiceDate" required>
+                </div>
+
+                <div class="form-group">
+                    <label>Kime Faturalandırılıyor</label>
+                    <textarea id="billTo" rows="4" placeholder="İsim&#10;Adres Satır 1&#10;Adres Satır 2&#10;Şehir, Ülke, Posta Kodu" required>John Doe
+1234 Elm St, Apt 567
+City, Country, 12345</textarea>
+                </div>
+
+                <div class="form-group">
+                    <label>Kimden</label>
+                    <textarea id="fromCompany" rows="4" placeholder="Şirket Adı&#10;Adres Satır 1&#10;Adres Satır 2&#10;Şehir, Ülke, Posta Kodu" required>ABC Corporation
+789 Business Ave
+City, Country, 67890</textarea>
+                </div>
+
+                <div class="form-group">
+                    <label>İletişim Email</label>
+                    <input type="email" id="contactEmail" value="support@mycompany.com" required>
+                </div>
+
+                <div class="items-section">
+                    <h3>Fatura Kalemleri</h3>
+                    <div id="itemsContainer">
+                        <div class="item-row">
+                            <div>
+                                <label>Açıklama</label>
+                                <input type="text" class="item-description" placeholder="Hizmet/Ürün açıklaması" value="Web Hosting" required>
+                            </div>
+                            <div>
+                                <label>Birim Fiyat</label>
+                                <input type="number" class="item-price" placeholder="0.00" step="0.01" value="150" required>
+                            </div>
+                            <div>
+                                <label>Miktar</label>
+                                <input type="number" class="item-qty" placeholder="1" value="2" min="1" required>
+                            </div>
+                            <div>
+                                <label>&nbsp;</label>
+                                <button type="button" class="btn btn-danger" onclick="removeItem(this)">🗑️</button>
+                            </div>
+                        </div>
+                        <div class="item-row">
+                            <div>
+                                <input type="text" class="item-description" placeholder="Hizmet/Ürün açıklaması" value="Domain" required>
+                            </div>
+                            <div>
+                                <input type="number" class="item-price" placeholder="0.00" step="0.01" value="15" required>
+                            </div>
+                            <div>
+                                <input type="number" class="item-qty" placeholder="1" value="5" min="1" required>
+                            </div>
+                            <div>
+                                <button type="button" class="btn btn-danger" onclick="removeItem(this)">🗑️</button>
+                            </div>
+                        </div>
+                    </div>
+                    <button type="button" class="btn btn-secondary" onclick="addItem()">➕ Kalem Ekle</button>
+                </div>
+
+                <div style="text-align: center; margin-top: 30px;">
+                    <button type="button" class="btn btn-primary" onclick="updatePreview()">🔄 Önizlemeyi Güncelle</button>
+                </div>
+            </form>
+        </div>
+
+        <div class="preview-panel">
+            <div class="controls">
+                <button class="btn btn-primary" onclick="downloadPDF()">📄 PDF İndir</button>
+                <button class="btn btn-secondary" onclick="printInvoice()">🖨️ Yazdır</button>
+            </div>
+            
+            <div id="invoicePreview">
+                <div class="invoice-wrapper">
+                    <div class="header">
+                        <h1>Fatura</h1>
+                        <p>Fatura #<span id="previewInvoiceNo">1</span></p>
+                        <p>Tarih: <span id="previewDate"></span></p>
+                    </div>
+
+                    <div class="invoice-details">
+                        <div>
+                            <h3>Fatura Edilen:</h3>
+                            <div id="previewBillTo"></div>
+                        </div>
+                        <div>
+                            <h3>Fatura Eden:</h3>
+                            <div id="previewFrom"></div>
+                            <p>Email: <span id="previewEmail">support@mycompany.com</span></p>
+                        </div>
+                    </div>
+
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>Açıklama</th>
+                                <th>Birim Fiyat</th>
+                                <th>Miktar</th>
+                                <th>Toplam</th>
+                            </tr>
+                        </thead>
+                        <tbody id="previewItems">
+                        </tbody>
+                    </table>
+
+                    <div class="footer">
+                        <p>İşbirliğiniz için teşekkür ederiz! 🙏</p>
+                        <p>Bu fatura ile ilgili sorularınız için bizimle iletişime geçin: <a href="mailto:support@mycompany.com" id="footerEmail">support@mycompany.com</a></p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Sayfa yüklendiğinde bugünün tarihini ayarla
+        document.getElementById('invoiceDate').value = new Date().toISOString().split('T')[0];
+        
+        // İlk önizlemeyi göster
+        updatePreview();
+
+        function addItem() {
+            const container = document.getElementById('itemsContainer');
+            const newRow = document.createElement('div');
+            newRow.className = 'item-row';
+            newRow.innerHTML = `
+                <div>
+                    <input type="text" class="item-description" placeholder="Hizmet/Ürün açıklaması" required>
+                </div>
+                <div>
+                    <input type="number" class="item-price" placeholder="0.00" step="0.01" required>
+                </div>
+                <div>
+                    <input type="number" class="item-qty" placeholder="1" value="1" min="1" required>
+                </div>
+                <div>
+                    <button type="button" class="btn btn-danger" onclick="removeItem(this)">🗑️</button>
+                </div>
+            `;
+            container.appendChild(newRow);
+        }
+
+        function removeItem(button) {
+            const itemRows = document.querySelectorAll('.item-row');
+            if (itemRows.length > 1) {
+                button.closest('.item-row').remove();
+                updatePreview();
+            } else {
+                alert('En az bir kalem bulunmalıdır!');
+            }
+        }
+
+        function updatePreview() {
+            // Temel bilgileri güncelle
+            document.getElementById('previewInvoiceNo').textContent = document.getElementById('invoiceNo').value;
+            document.getElementById('previewDate').textContent = formatDate(document.getElementById('invoiceDate').value);
+            document.getElementById('previewEmail').textContent = document.getElementById('contactEmail').value;
+            document.getElementById('footerEmail').textContent = document.getElementById('contactEmail').value;
+            document.getElementById('footerEmail').href = 'mailto:' + document.getElementById('contactEmail').value;
+
+            // Adres bilgilerini güncelle
+            updateAddressField('billTo', 'previewBillTo');
+            updateAddressField('fromCompany', 'previewFrom');
+
+            // Kalemleri güncelle
+            updateItems();
+        }
+
+        function formatDate(dateString) {
+            if (!dateString) return '';
+            const date = new Date(dateString);
+            return date.toLocaleDateString('tr-TR');
+        }
+
+        function updateAddressField(inputId, previewId) {
+            const input = document.getElementById(inputId).value;
+            const lines = input.split('\n').filter(line => line.trim());
+            const html = lines.map(line => `<p>${line.trim()}</p>`).join('');
+            document.getElementById(previewId).innerHTML = html;
+        }
+
+        function updateItems() {
+            const itemRows = document.querySelectorAll('.item-row');
+            const previewItems = document.getElementById('previewItems');
+            let total = 0;
+            let html = '';
+
+            itemRows.forEach(row => {
+                const description = row.querySelector('.item-description').value || '';
+                const price = parseFloat(row.querySelector('.item-price').value) || 0;
+                const qty = parseInt(row.querySelector('.item-qty').value) || 0;
+                const itemTotal = price * qty;
+                total += itemTotal;
+
+                if (description && price > 0 && qty > 0) {
+                    html += `
+                        <tr>
+                            <td>${description}</td>
+                            <td>₺${price.toFixed(2)}</td>
+                            <td>${qty}</td>
+                            <td>₺${itemTotal.toFixed(2)}</td>
+                        </tr>
+                    `;
+                }
+            });
+
+            html += `
+                <tr class="total">
+                    <td colspan="3"><strong>TOPLAM TUTAR</strong></td>
+                    <td><strong>₺${total.toFixed(2)}</strong></td>
+                </tr>
+            `;
+
+            previewItems.innerHTML = html;
+        }
+
+        async function downloadPDF() {
+            const { jsPDF } = window.jspdf;
+            const element = document.getElementById('invoicePreview');
+            
+            try {
+                // HTML2Canvas ile faturayı görüntüye çevir
+                const canvas = await html2canvas(element, {
+                    scale: 2,
+                    useCORS: true,
+                    allowTaint: true,
+                    backgroundColor: '#ffffff'
+                });
+                
+                // PDF oluştur
+                const imgData = canvas.toDataURL('image/png');
+                const pdf = new jsPDF('p', 'mm', 'a4');
+                
+                // Görüntü boyutlarını hesapla
+                const imgWidth = 210; // A4 genişliği (mm)
+                const imgHeight = (canvas.height * imgWidth) / canvas.width;
+                
+                // Eğer görüntü bir sayfaya sığmıyorsa, küçült
+                if (imgHeight > 297) { // A4 yüksekliği (mm)
+                    const scaledWidth = (imgWidth * 297) / imgHeight;
+                    const scaledHeight = 297;
+                    const xOffset = (210 - scaledWidth) / 2;
+                    pdf.addImage(imgData, 'PNG', xOffset, 0, scaledWidth, scaledHeight);
+                } else {
+                    pdf.addImage(imgData, 'PNG', 0, 0, imgWidth, imgHeight);
+                }
+                
+                // PDF'i indir
+                const invoiceNo = document.getElementById('invoiceNo').value;
+                pdf.save(`fatura-${invoiceNo}.pdf`);
+                
+            } catch (error) {
+                console.error('PDF oluşturma hatası:', error);
+                alert('PDF oluşturulurken bir hata oluştu. Lütfen tekrar deneyin.');
+            }
+        }
+
+        function printInvoice() {
+            const originalBody = document.body.innerHTML;
+            const printContent = document.getElementById('invoicePreview').innerHTML;
+            
+            document.body.innerHTML = `
+                <html>
+                <head>
+                    <title>Fatura</title>
+                    <style>
+                        body { font-family: Arial, sans-serif; margin: 0; padding: 20px; }
+                        .invoice-wrapper { max-width: 800px; margin: 0 auto; }
+                        .header { background: linear-gradient(145deg, #3f51b5, #2196f3); text-align: center; color: #fff; padding: 30px; border-radius: 10px; margin-bottom: 30px; }
+                        .header h1 { font-size: 36px; margin-bottom: 10px; }
+                        .header p { font-size: 16px; opacity: 0.9; }
+                        .invoice-details { display: flex; justify-content: space-between; margin-bottom: 30px; gap: 30px; }
+                        .invoice-details > div { flex: 1; }
+                        .invoice-details h3 { color: #3f51b5; font-size: 18px; margin-bottom: 15px; }
+                        .invoice-details p { font-size: 14px; color: #555; line-height: 1.6; margin-bottom: 5px; }
+                        .table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+                        .table th, .table td { padding: 15px; text-align: left; font-size: 14px; border: 1px solid #ddd; }
+                        .table th { background: #f1f5fc; color: #3f51b5; font-weight: 600; }
+                        .table .total { background: #e8f4f8; font-weight: 700; font-size: 16px; color: #2c3e50; }
+                        .footer { text-align: center; margin-top: 40px; padding-top: 30px; border-top: 2px solid #e6e9f1; }
+                        .footer p { font-size: 14px; color: #666; margin-bottom: 10px; }
+                        @media print { body { margin: 0; padding: 0; } }
+                    </style>
+                </head>
+                <body>${printContent}</body>
+                </html>
+            `;
+            
+            window.print();
+            document.body.innerHTML = originalBody;
+            
+            // Event listener'ları yeniden yükle
+            document.getElementById('invoiceDate').value = new Date().toISOString().split('T')[0];
+            updatePreview();
+        }
+
+        // Form alanları değiştiğinde önizlemeyi otomatik güncelle
+        document.addEventListener('input', function(e) {
+            if (e.target.matches('input, textarea')) {
+                updatePreview();
+            }
+        });
+    </script>
+</body>
+</html>
